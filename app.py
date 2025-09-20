@@ -112,10 +112,14 @@ def score_answers(form_dict, spec):
     min_total = 12 * s_min
     max_total = 12 * s_max
     rng = max_total - min_total
-    percent = {
-        t: (int(round((sums[t] - min_total) * 100 / rng)) if rng else 0)
-        for t in traits
-    }
+
+    # (Evito comprensiones para cero riesgo de paréntesis)
+    percent = {}
+    for t in traits:
+        if rng:
+            percent[t] = int(round((sums[t] - min_total) * 100.0 / rng))
+        else:
+            percent[t] = 0
 
     percent_list = [
         ("Apertura (O)", sums["O"], percent["O"]),
@@ -296,5 +300,4 @@ def admin_export_csv():
 # Arranque local (opcional)
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    # En local puedes ejecutar: python app.py
     app.run(host="127.0.0.1", port=5000, debug=False)
