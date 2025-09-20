@@ -8,7 +8,7 @@ from functools import wraps
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    session, flash, send_file, abort
+    session, flash, send_file
 )
 from flask_sqlalchemy import SQLAlchemy
 
@@ -51,7 +51,9 @@ def load_assessment():
     fallback = Path.cwd() / "assessments" / "big5_60.json"
     path = primary if primary.exists() else fallback
     if not path.exists():
-        raise FileNotFoundError(f"No se encontró el archivo del test en: {primary} ni en: {fallback}")
+        raise FileNotFoundError(
+            f"No se encontró el archivo del test en: {primary} ni en: {fallback}"
+        )
     with path.open("r", encoding="utf-8") as f:
         spec = json.load(f)
 
@@ -110,7 +112,10 @@ def score_answers(form_dict, spec):
     min_total = 12 * s_min
     max_total = 12 * s_max
     rng = max_total - min_total
-    percent = {t: int(round((sums[t] - min_total) * 100 / rng))) if rng else 0 for t in traits}
+    percent = {
+        t: (int(round((sums[t] - min_total) * 100 / rng)) if rng else 0)
+        for t in traits
+    }
 
     percent_list = [
         ("Apertura (O)", sums["O"], percent["O"]),
