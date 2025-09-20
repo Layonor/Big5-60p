@@ -28,6 +28,10 @@ else:
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
+# Crea tablas en el primer arranque si no existen (útil en Render)
+with app.app_context():
+    db.create_all()
+
 
 # -----------------------------------------------------------------------------
 # Modelos
