@@ -5,6 +5,8 @@ from io import StringIO, BytesIO
 from datetime import datetime, timezone
 from pathlib import Path
 from functools import wraps
+import smtplib
+from email.message import EmailMessage
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -13,39 +15,67 @@ from flask import (
 from flask_sqlalchemy import SQLAlchemy
 
 # -----------------------------------------------------------------------------
-# Crear la app y configuración base
+# Crear app y config base
 # -----------------------------------------------------------------------------
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-me")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# --- Config DB: SQLite por defecto; DATABASE_URL (Render) si existe ---
-database_url = os.environ.get("DATABASE_URL")
-if database_url:
-    # Algunas PaaS entregan postgres://; SQLAlchemy espera postgresql://
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    # Si usas psycopg v3, fuerza el driver explícito (no afecta a SQLite)
-    if database_url.startswith("postgresql://") and "+psycopg" not in database_url and "+pg8000" not in database_url:
-        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
-    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
-else:
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///big5.db"
+# --- DB: forzar SQLite en /tmp (escribible en Render) ---
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////tmp/big5.db"
 
 db = SQLAlchemy(app)
 
-# Crea tablas al arrancar (útil en Render/primer deploy)
+# Crea tablas al arrancar
 with app.app_context():
     db.create_all()
+
+# -----------------------------------------------------------------------------
+# Email: configuración por variables de entorno
+# -----------------------------------------------------------------------------
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
+SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USER or "no-reply@example.com")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "")  # <— tu correo destino
+
+def send_admin_email(subject: str, body_text: str, csv_bytes: bytes | None = None, csv_name: str = "respuestas.csv"):
+    """
+    Envía email al ADMIN_EMAIL con texto y CSV adjunto (opcional).
+    No rompe el flujo si falla: registra y continúa.
+    """
+    if not (SMTP_HOST and SMTP_USER and SMTP_PASS and ADMIN_EMAIL):
+        # Config incompleta: no enviar, pero no romper
+        app.logger.warning("Email no enviado: faltan variables SMTP/ADMIN_EMAIL")
+        return
+
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = SMTP_FROM
+        msg["To"] = ADMIN_EMAIL
+        msg.set_content(body_text)
+
+        if csv_bytes:
+            msg.add_attachment(
+                csv_bytes,
+                maintype="text",
+                subtype="csv",
+                filename=csv_name
+            )
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as s:
+            s.starttls()
+            s.login(SMTP_USER, SMTP_PASS)
+            s.send_message(msg)
+    except Exception as e:
+        app.logger.exception(f"Fallo enviando email: {e}")
 
 # -----------------------------------------------------------------------------
 # Utilidades: cargar test y calcular puntuaciones
 # -----------------------------------------------------------------------------
 def load_assessment():
-    """
-    Carga assessments/big5_60.json. Si no encuentra la ruta al lado del app.py,
-    intenta con el cwd (por si se ejecuta desde otra carpeta).
-    """
     base = Path(__file__).resolve().parent
     primary = base / "assessments" / "big5_60.json"
     fallback = Path.cwd() / "assessments" / "big5_60.json"
@@ -57,7 +87,7 @@ def load_assessment():
     with path.open("r", encoding="utf-8") as f:
         spec = json.load(f)
 
-    # Asegura opciones de escala si no vienen
+    # Escala
     scale = spec.get("scale", {})
     s_min = int(scale.get("min", 1))
     s_max = int(scale.get("max", 5))
@@ -70,7 +100,7 @@ def load_assessment():
     scale.setdefault("label", "1 = Muy en desacuerdo | 5 = Muy de acuerdo")
     spec["scale"] = scale
 
-    # Normaliza items
+    # Items normalizados
     for i in spec.get("items", []):
         i["id"] = int(i["id"])
         i["reverse"] = bool(i.get("reverse", False))
@@ -80,20 +110,13 @@ def load_assessment():
 
 
 def score_answers(form_dict, spec):
-    """
-    Devuelve:
-      - sums: dict con sumas O,C,E,A,N
-      - percent_list: lista [(nombre, suma, porcentaje_int), ...]
-    """
     s_min = spec["scale"]["min"]
     s_max = spec["scale"]["max"]
     traits = ["O", "C", "E", "A", "N"]
     sums = {t: 0 for t in traits}
 
-    # Mapa rápido id->item
     items = {int(it["id"]): it for it in spec["items"]}
 
-    # Recorremos los 60 ítems
     for qid, item in items.items():
         key = f"q{qid}"
         val_str = form_dict.get(key)
@@ -103,23 +126,15 @@ def score_answers(form_dict, spec):
             val = int(val_str)
         except ValueError:
             raise ValueError(f"Respuesta inválida en ítem {qid}")
-        # Reversa
         if item.get("reverse"):
             val = s_min + s_max - val
         sums[item["trait"]] += val
 
-    # Normalización 0-100 (cada rasgo tiene 12 ítems)
+    # 0–100
     min_total = 12 * s_min
     max_total = 12 * s_max
     rng = max_total - min_total
-
-    # (Evito comprensiones para cero riesgo de paréntesis)
-    percent = {}
-    for t in traits:
-        if rng:
-            percent[t] = int(round((sums[t] - min_total) * 100.0 / rng))
-        else:
-            percent[t] = 0
+    percent = {t: (int(round((sums[t] - min_total) * 100 / rng)) if rng else 0) for t in traits}
 
     percent_list = [
         ("Apertura (O)", sums["O"], percent["O"]),
@@ -130,7 +145,6 @@ def score_answers(form_dict, spec):
     ]
     return sums, percent_list
 
-
 # -----------------------------------------------------------------------------
 # Modelos
 # -----------------------------------------------------------------------------
@@ -140,26 +154,22 @@ class Response(db.Model):
     ts = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     nickname = db.Column(db.String(120))
     email = db.Column(db.String(320))
-    # Sumas por rasgo
     O = db.Column(db.Integer, nullable=False)
     C = db.Column(db.Integer, nullable=False)
     E = db.Column(db.Integer, nullable=False)
     A = db.Column(db.Integer, nullable=False)
     N = db.Column(db.Integer, nullable=False)
 
-
 # -----------------------------------------------------------------------------
 # CLI
 # -----------------------------------------------------------------------------
 @app.cli.command("init-db")
 def init_db():
-    """Crea tablas si no existen."""
     db.create_all()
     print("Base de datos inicializada.")
 
-
 # -----------------------------------------------------------------------------
-# Auth muy simple para admin
+# Auth simple
 # -----------------------------------------------------------------------------
 def admin_required(fn):
     @wraps(fn)
@@ -168,7 +178,6 @@ def admin_required(fn):
             return redirect(url_for("login", next=request.path))
         return fn(*args, **kwargs)
     return wrapper
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -185,36 +194,32 @@ def login():
         flash("Credenciales inválidas.", "danger")
     return render_template("login.html")
 
-
 @app.route("/logout")
 def logout():
     session.pop("admin", None)
     flash("Sesión cerrada.", "info")
     return redirect(url_for("test"))
 
-
 # -----------------------------------------------------------------------------
-# Rutas principales
+# Rutas
 # -----------------------------------------------------------------------------
 @app.route("/")
 def index():
     return redirect(url_for("test"))
-
 
 @app.route("/test", methods=["GET", "POST"])
 def test():
     spec = load_assessment()
 
     if request.method == "POST":
-        # Validar que llegó todo
+        # Validación
         expected = {f"q{i['id']}" for i in spec["items"]}
         got = {k for k in request.form.keys() if k.startswith("q")}
         if expected - got:
             flash("Faltan respuestas, por favor completa todas las preguntas.", "warning")
-            # Vuelve a mostrar formulario con lo respondido
             return render_template("test.html", spec=spec, prev=request.form)
 
-        # Calcular y guardar
+        # Calcular + guardar
         sums, percent_list = score_answers(request.form, spec)
         r = Response(
             nickname=request.form.get("nickname", "").strip() or None,
@@ -224,23 +229,45 @@ def test():
         db.session.add(r)
         db.session.commit()
 
-        session["last_results"] = percent_list  # para mostrar en /thanks
+        # Preparar email al admin (texto + CSV adjunto)
+        nick = r.nickname or "(sin nombre)"
+        mail_user = r.email or "(sin email)"
+        lines = [f"Big5-60p - Nuevo resultado",
+                 f"Fecha (UTC): {r.ts.strftime('%Y-%m-%d %H:%M:%S')}",
+                 f"Nombre: {nick}",
+                 f"Email: {mail_user}",
+                 ""]
+        for name, score, pct in percent_list:
+            lines.append(f"{name}: suma={score}, %={pct}")
+        body = "\n".join(lines)
+
+        # CSV (1 fila)
+        csv_io = StringIO()
+        w = csv.writer(csv_io)
+        w.writerow(["id","ts_utc","nickname","email","O","C","E","A","N"])
+        w.writerow([r.id, r.ts.strftime("%Y-%m-%d %H:%M:%S"), nick, mail_user, r.O, r.C, r.E, r.A, r.N])
+        csv_bytes = csv_io.getvalue().encode("utf-8")
+
+        # Enviar (no rompe si falla)
+        send_admin_email(
+            subject="Big5-60p: nuevo resultado",
+            body_text=body,
+            csv_bytes=csv_bytes,
+            csv_name=f"big5_respuesta_{r.id}.csv"
+        )
+
+        # NO mostramos análisis al candidato
         return redirect(url_for("thanks"))
 
-    # GET
     return render_template("test.html", spec=spec, prev=None)
-
 
 @app.route("/thanks")
 def thanks():
-    results = session.pop("last_results", None)
-    if not results:
-        return redirect(url_for("test"))
-    return render_template("thanks.html", results=results)
-
+    # Mensaje neutro (no mostramos resultados)
+    return render_template("thanks.html")
 
 # -----------------------------------------------------------------------------
-# Panel admin
+# Admin
 # -----------------------------------------------------------------------------
 @app.route("/admin")
 @admin_required
@@ -263,28 +290,19 @@ def admin():
     ]
     return render_template("admin.html", rows=data)
 
-
 @app.route("/admin/export.csv")
 @admin_required
 def admin_export_csv():
     rows = Response.query.order_by(Response.ts.asc()).all()
-
     output = StringIO()
     writer = csv.writer(output)
-
-    # encabezado
     writer.writerow(["id", "ts_utc", "nickname", "email", "O", "C", "E", "A", "N"])
-
-    # filas
     for r in rows:
         writer.writerow([
-            r.id,
-            r.ts.strftime("%Y-%m-%d %H:%M:%S"),
-            r.nickname or "",
-            r.email or "",
+            r.id, r.ts.strftime("%Y-%m-%d %H:%M:%S"),
+            r.nickname or "", r.email or "",
             r.O, r.C, r.E, r.A, r.N,
         ])
-
     mem = BytesIO(output.getvalue().encode("utf-8"))
     mem.seek(0)
     filename = f"big5_responses_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
@@ -295,9 +313,6 @@ def admin_export_csv():
         as_attachment=True,
     )
 
-
-# -----------------------------------------------------------------------------
-# Arranque local (opcional)
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=False)

@@ -1,36 +1,72 @@
 {% extends "base.html" %}
-
-{% block title %}{{ spec.title }}{% endblock %}
+{% block title %}{{ spec.title or "Big Five - Cuestionario de 60 ítems" }}{% endblock %}
 
 {% block content %}
-<h1>{{ spec.title }}</h1>
-<p class="muted">{{ spec.scale.label }}</p>
+
+<style>
+  /* Doble espacio entre preguntas */
+  .qrow { margin: 24px 0; }
+  .qtext { margin-bottom: 6px; font-weight: 500; }
+  .scale { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .scale label { display: flex; align-items: center; gap: 6px; }
+  .muted { color: #666; }
+  .card { background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 18px; }
+  .grid { display: grid; gap: 14px; }
+  .btn { padding: 10px 16px; border-radius: 8px; border: 0; background:#0d6efd; color:#fff; cursor:pointer; }
+  .btn:hover { opacity: .9; }
+  input[type="text"], input[type="email"] {
+    width: 100%;
+    max-width: 420px;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+  }
+  label.inline { display:block; font-weight:600; margin-top:6px; margin-bottom:4px; }
+</style>
+
+<h1>{{ spec.title or "Big Five - Cuestionario de 60 ítems" }}</h1>
+<p class="muted">
+  {{ spec.scale.label or ("{} = Muy en desacuerdo | {} = Muy de acuerdo".format(spec.scale.min, spec.scale.max)) }}
+</p>
 
 <form class="card grid" method="post" action="{{ url_for('test') }}">
-  <label>Nombre o apodo
-    <input type="text" name="nickname" maxlength="120">
-  </label>
+  <div>
+    <label class="inline" for="nickname">Nombre o apodo</label>
+    <input id="nickname" type="text" name="nickname" placeholder="Tu nombre o apodo">
+  </div>
 
-  <label>Email (opcional)
-    <input type="email" name="email" maxlength="320">
-  </label>
+  <div>
+    <label class="inline" for="email">Email (opcional)</label>
+    <input id="email" type="email" name="email" placeholder="tu@correo.com">
+  </div>
 
-  {% for item in spec['items'] %}
-    <div class="row">
-      <div class="qtext"><strong>{{ item.id }}.</strong> {{ item.text }}</div>
+  {% for item in spec.items %}
+    <div class="qrow">
+      <div class="qtext"><strong>{{ loop.index }}.</strong> {{ item.text }}</div>
       <div class="scale">
-        {% for n in range(spec.scale.min, spec.scale.max + 1) %}
-          <label>
-            <input
-              type="radio"
-              name="q{{ item.id }}"
-              value="{{ n }}"
-              required
-              {% if prev and prev.get('q' ~ item.id) == n|string %}checked{% endif %}
-            >
-            {{ n }}
-          </label>
-        {% endfor %}
+        {% if spec.scale.options %}
+          {% for opt in spec.scale.options %}
+            <label>
+              <input
+                type="radio"
+                name="q{{ item.id }}"
+                value="{{ opt.value }}"
+                {% if loop.first %}required{% endif %}
+              > {{ opt.value }}
+            </label>
+          {% endfor %}
+        {% else %}
+          {% for v in range(spec.scale.min, spec.scale.max + 1) %}
+            <label>
+              <input
+                type="radio"
+                name="q{{ item.id }}"
+                value="{{ v }}"
+                {% if loop.first %}required{% endif %}
+              > {{ v }}
+            </label>
+          {% endfor %}
+        {% endif %}
       </div>
     </div>
   {% endfor %}
@@ -38,5 +74,9 @@
   <button class="btn" type="submit">Enviar</button>
 </form>
 
-<p class="muted">Privacidad: tus respuestas pueden usarse de forma anónima con fines de evaluación. Puedes solicitar su eliminación.</p>
+<p class="muted" style="margin-top:10px;">
+  Privacidad: tus respuestas pueden usarse de forma anónima con fines de evaluación.
+  Puedes solicitar su eliminación.
+</p>
+
 {% endblock %}
