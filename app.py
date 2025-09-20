@@ -110,7 +110,7 @@ def score_answers(form_dict, spec):
     min_total = 12 * s_min
     max_total = 12 * s_max
     rng = max_total - min_total
-    percent = {t: int(round((sums[t] - min_total) * 100 / rng)) for t in traits}
+    percent = {t: int(round((sums[t] - min_total) * 100 / rng))) if rng else 0 for t in traits}
 
     percent_list = [
         ("Apertura (O)", sums["O"], percent["O"]),
@@ -201,7 +201,6 @@ def test():
         expected = {f"q{i['id']}" for i in spec["items"]}
         got = {k for k in request.form.keys() if k.startswith("q")}
         if expected - got:
-            missing = ", ".join(sorted(expected - got))
             flash("Faltan respuestas, por favor completa todas las preguntas.", "warning")
             # Vuelve a mostrar formulario con lo respondido
             return render_template("test.html", spec=spec, prev=request.form)
@@ -260,13 +259,37 @@ def admin():
 @admin_required
 def admin_export_csv():
     rows = Response.query.order_by(Response.ts.asc()).all()
+
     output = StringIO()
     writer = csv.writer(output)
+
+    # encabezado
     writer.writerow(["id", "ts_utc", "nickname", "email", "O", "C", "E", "A", "N"])
+
+    # filas
     for r in rows:
         writer.writerow([
             r.id,
             r.ts.strftime("%Y-%m-%d %H:%M:%S"),
             r.nickname or "",
             r.email or "",
-            r.O, r.C, r.E, r.A, r.
+            r.O, r.C, r.E, r.A, r.N,
+        ])
+
+    mem = BytesIO(output.getvalue().encode("utf-8"))
+    mem.seek(0)
+    filename = f"big5_responses_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    return send_file(
+        mem,
+        mimetype="text/csv; charset=utf-8",
+        download_name=filename,
+        as_attachment=True,
+    )
+
+
+# -----------------------------------------------------------------------------
+# Arranque local (opcional)
+# -----------------------------------------------------------------------------
+if __name__ == "__main__":
+    # En local puedes ejecutar: python app.py
+    app.run(host="127.0.0.1", port=5000, debug=False)
