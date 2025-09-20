@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: big5-60p
+    env: python
+    plan: free
+    branch: main
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "gunicorn app:app"
+    envVars:
+      - key: SECRET_KEY
+        sync: false
+      - key: ADMIN_USER
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: big5-60p-db
+          property: connectionString
+
+databases:
+  - name: big5-60p-db
+    plan: free
