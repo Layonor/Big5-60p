@@ -13,24 +13,19 @@ from flask_sqlalchemy import SQLAlchemy
 # -----------------------------------------------------------------------------
 # Config
 # -----------------------------------------------------------------------------
-app = Flask(__name__, template_folder="templates")
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
-
-# SQLite por defecto; usa DATABASE_URL (Render/Heroku) si existe
+# SQLite por defecto; usa DATABASE_URL (Render) si existe
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
     # Render/Heroku pueden entregar postgres:// -> convertir a postgresql://
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
+    # Fuerza a usar el driver psycopg (v3) en SQLAlchemy
+    if database_url.startswith("postgresql://") and "+psycopg" not in database_url and "+pg8000" not in database_url:
+        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///big5.db"
 
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(app)
-# Crea tablas en el primer arranque si no existen (útil en Render)
-with app.app_context():
-    db.create_all()
 
 
 # -----------------------------------------------------------------------------
