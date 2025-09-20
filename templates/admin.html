@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Panel Admin{% endblock %}
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Respuestas registradas</h1>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin_export_csv') }}" class="btn btn-outline-primary btn-sm">Exportar CSV</a>
+      <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm">Salir</a>
+    </div>
+  </div>
+
+  {% if rows %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Fecha (UTC)</th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>O</th>
+            <th>C</th>
+            <th>E</th>
+            <th>A</th>
+            <th>N</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td>{{ r.id }}</td>
+              <td>{{ r.ts }}</td>
+              <td>{{ r.nickname }}</td>
+              <td>{{ r.email }}</td>
+              <td>{{ r.O }}</td>
+              <td>{{ r.C }}</td>
+              <td>{{ r.E }}</td>
+              <td>{{ r.A }}</td>
+              <td>{{ r.N }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted">Aún no hay respuestas.</p>
+  {% endif %}
+{% endblock %}
