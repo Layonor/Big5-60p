@@ -1,7 +1,9 @@
 import os
 import json
 import csv
-from datetime import datetime
+from io import StringIO, BytesIO
+from datetime import datetime, timezone
+from pathlib import Path
 from functools import wraps
 
 from flask import (
@@ -11,239 +13,260 @@ from flask import (
 from flask_sqlalchemy import SQLAlchemy
 
 # -----------------------------------------------------------------------------
-# Config
+# Crear la app y configuración base
 # -----------------------------------------------------------------------------
-# SQLite por defecto; usa DATABASE_URL (Render) si existe
+app = Flask(__name__)
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-me")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# --- Config DB: SQLite por defecto; DATABASE_URL (Render) si existe ---
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
-    # Render/Heroku pueden entregar postgres:// -> convertir a postgresql://
+    # Algunas PaaS entregan postgres://; SQLAlchemy espera postgresql://
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
-    # Fuerza a usar el driver psycopg (v3) en SQLAlchemy
+    # Si usas psycopg v3, fuerza el driver explícito (no afecta a SQLite)
     if database_url.startswith("postgresql://") and "+psycopg" not in database_url and "+pg8000" not in database_url:
         database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///big5.db"
 
+db = SQLAlchemy(app)
+
+# Crea tablas al arrancar (útil en Render/primer deploy)
+with app.app_context():
+    db.create_all()
+
+# -----------------------------------------------------------------------------
+# Utilidades: cargar test y calcular puntuaciones
+# -----------------------------------------------------------------------------
+def load_assessment():
+    """
+    Carga assessments/big5_60.json. Si no encuentra la ruta al lado del app.py,
+    intenta con el cwd (por si se ejecuta desde otra carpeta).
+    """
+    base = Path(__file__).resolve().parent
+    primary = base / "assessments" / "big5_60.json"
+    fallback = Path.cwd() / "assessments" / "big5_60.json"
+    path = primary if primary.exists() else fallback
+    if not path.exists():
+        raise FileNotFoundError(f"No se encontró el archivo del test en: {primary} ni en: {fallback}")
+    with path.open("r", encoding="utf-8") as f:
+        spec = json.load(f)
+
+    # Asegura opciones de escala si no vienen
+    scale = spec.get("scale", {})
+    s_min = int(scale.get("min", 1))
+    s_max = int(scale.get("max", 5))
+    options = scale.get("options")
+    if not options:
+        options = [{"value": v} for v in range(s_min, s_max + 1)]
+        scale["options"] = options
+    scale["min"] = s_min
+    scale["max"] = s_max
+    scale.setdefault("label", "1 = Muy en desacuerdo | 5 = Muy de acuerdo")
+    spec["scale"] = scale
+
+    # Normaliza items
+    for i in spec.get("items", []):
+        i["id"] = int(i["id"])
+        i["reverse"] = bool(i.get("reverse", False))
+        i["trait"] = i.get("trait", "").upper()
+
+    return spec
+
+
+def score_answers(form_dict, spec):
+    """
+    Devuelve:
+      - sums: dict con sumas O,C,E,A,N
+      - percent_list: lista [(nombre, suma, porcentaje_int), ...]
+    """
+    s_min = spec["scale"]["min"]
+    s_max = spec["scale"]["max"]
+    traits = ["O", "C", "E", "A", "N"]
+    sums = {t: 0 for t in traits}
+
+    # Mapa rápido id->item
+    items = {int(it["id"]): it for it in spec["items"]}
+
+    # Recorremos los 60 ítems
+    for qid, item in items.items():
+        key = f"q{qid}"
+        val_str = form_dict.get(key)
+        if val_str is None:
+            raise ValueError(f"Falta responder el ítem {qid}")
+        try:
+            val = int(val_str)
+        except ValueError:
+            raise ValueError(f"Respuesta inválida en ítem {qid}")
+        # Reversa
+        if item.get("reverse"):
+            val = s_min + s_max - val
+        sums[item["trait"]] += val
+
+    # Normalización 0-100 (cada rasgo tiene 12 ítems)
+    min_total = 12 * s_min
+    max_total = 12 * s_max
+    rng = max_total - min_total
+    percent = {t: int(round((sums[t] - min_total) * 100 / rng)) for t in traits}
+
+    percent_list = [
+        ("Apertura (O)", sums["O"], percent["O"]),
+        ("Responsabilidad (C)", sums["C"], percent["C"]),
+        ("Extraversión (E)", sums["E"], percent["E"]),
+        ("Amabilidad (A)", sums["A"], percent["A"]),
+        ("Neuroticismo (N)", sums["N"], percent["N"]),
+    ]
+    return sums, percent_list
 
 
 # -----------------------------------------------------------------------------
 # Modelos
 # -----------------------------------------------------------------------------
-class Submission(db.Model):
-    __tablename__ = "submissions"
+class Response(db.Model):
+    __tablename__ = "responses"
     id = db.Column(db.Integer, primary_key=True)
-    ts = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    # Metadata opcional
+    ts = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     nickname = db.Column(db.String(120))
-    email = db.Column(db.String(255))
-    # Respuestas en JSON string (id->score)
-    answers_json = db.Column(db.Text, nullable=False)
-    # Puntajes finales
-    score_O = db.Column(db.Integer, nullable=False)
-    score_C = db.Column(db.Integer, nullable=False)
-    score_E = db.Column(db.Integer, nullable=False)
-    score_A = db.Column(db.Integer, nullable=False)
-    score_N = db.Column(db.Integer, nullable=False)
-    # Porcentajes 0-100 (aprox)
-    pct_O = db.Column(db.Float, nullable=False)
-    pct_C = db.Column(db.Float, nullable=False)
-    pct_E = db.Column(db.Float, nullable=False)
-    pct_A = db.Column(db.Float, nullable=False)
-    pct_N = db.Column(db.Float, nullable=False)
+    email = db.Column(db.String(320))
+    # Sumas por rasgo
+    O = db.Column(db.Integer, nullable=False)
+    C = db.Column(db.Integer, nullable=False)
+    E = db.Column(db.Integer, nullable=False)
+    A = db.Column(db.Integer, nullable=False)
+    N = db.Column(db.Integer, nullable=False)
+
 
 # -----------------------------------------------------------------------------
-# Utilidades
+# CLI
 # -----------------------------------------------------------------------------
-def load_assessment():
-    path = os.path.join(os.path.dirname(__file__), "assessments", "big5_60.json")
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+@app.cli.command("init-db")
+def init_db():
+    """Crea tablas si no existen."""
+    db.create_all()
+    print("Base de datos inicializada.")
 
-def compute_scores(answers_dict, spec):
-    """
-    answers_dict: { "1": 1..5, "2": 1..5, ... }
-    spec: JSON del test
-    Retorna dict con sumas y porcentajes.
-    """
-    trait_map = {"O": 0, "C": 0, "E": 0, "A": 0, "N": 0}
-    counts = {"O": 0, "C": 0, "E": 0, "A": 0, "N": 0}
 
-    reverse_items = {str(it["id"]) for it in spec["items"] if it.get("reverse", False)}
-    trait_of = {str(it["id"]): it["trait"] for it in spec["items"]}
-
-    for qid, raw in answers_dict.items():
-        val = int(raw)
-        if qid in reverse_items:
-            val = 6 - val  # invertir
-        trait = trait_of[qid]
-        trait_map[trait] += val
-        counts[trait] += 1
-
-    # Normalizar 0-100 en base a rango [count, 5*count]
-    pct = {}
-    for t in trait_map:
-        c = max(1, counts[t])
-        min_sum, max_sum = c * 1, c * 5
-        pct[t] = (trait_map[t] - min_sum) / (max_sum - min_sum) * 100.0
-
-    return {
-        "sum": trait_map,
-        "pct": pct,
-    }
-
-def admin_required(view):
-    @wraps(view)
+# -----------------------------------------------------------------------------
+# Auth muy simple para admin
+# -----------------------------------------------------------------------------
+def admin_required(fn):
+    @wraps(fn)
     def wrapper(*args, **kwargs):
         if not session.get("admin"):
             return redirect(url_for("login", next=request.path))
-        return view(*args, **kwargs)
+        return fn(*args, **kwargs)
     return wrapper
 
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        u = request.form.get("username", "")
+        p = request.form.get("password", "")
+        user_ok = u == os.environ.get("ADMIN_USER", "admin")
+        pass_ok = p == os.environ.get("ADMIN_PASSWORD", "admin123")
+        if user_ok and pass_ok:
+            session["admin"] = True
+            flash("Sesión iniciada.", "success")
+            nxt = request.args.get("next") or url_for("admin")
+            return redirect(nxt)
+        flash("Credenciales inválidas.", "danger")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.pop("admin", None)
+    flash("Sesión cerrada.", "info")
+    return redirect(url_for("test"))
+
+
 # -----------------------------------------------------------------------------
-# Rutas
+# Rutas principales
 # -----------------------------------------------------------------------------
 @app.route("/")
 def index():
     return redirect(url_for("test"))
 
+
 @app.route("/test", methods=["GET", "POST"])
 def test():
     spec = load_assessment()
-    if request.method == "POST":
-        # Validar que todas las preguntas tienen respuesta
-        answers = {}
-        missing = []
-        for item in spec["items"]:
-            qid = str(item["id"])
-            val = request.form.get(f"q{qid}")
-            if not val:
-                missing.append(qid)
-            else:
-                answers[qid] = int(val)
 
-        if missing:
-            flash("Por favor, responde todas las preguntas antes de enviar.", "warning")
+    if request.method == "POST":
+        # Validar que llegó todo
+        expected = {f"q{i['id']}" for i in spec["items"]}
+        got = {k for k in request.form.keys() if k.startswith("q")}
+        if expected - got:
+            missing = ", ".join(sorted(expected - got))
+            flash("Faltan respuestas, por favor completa todas las preguntas.", "warning")
+            # Vuelve a mostrar formulario con lo respondido
             return render_template("test.html", spec=spec, prev=request.form)
 
-        # Datos opcionales del participante
-        nickname = request.form.get("nickname") or None
-        email = request.form.get("email") or None
-
-        # Calcular puntajes
-        res = compute_scores(answers, spec)
-        sums = res["sum"]
-        pcts = res["pct"]
-
-        sub = Submission(
-            nickname=nickname,
-            email=email,
-            answers_json=json.dumps(answers, ensure_ascii=False),
-            score_O=sums["O"], score_C=sums["C"], score_E=sums["E"],
-            score_A=sums["A"], score_N=sums["N"],
-            pct_O=pcts["O"], pct_C=pcts["C"], pct_E=pcts["E"],
-            pct_A=pcts["A"], pct_N=pcts["N"],
+        # Calcular y guardar
+        sums, percent_list = score_answers(request.form, spec)
+        r = Response(
+            nickname=request.form.get("nickname", "").strip() or None,
+            email=request.form.get("email", "").strip() or None,
+            O=sums["O"], C=sums["C"], E=sums["E"], A=sums["A"], N=sums["N"],
         )
-        db.session.add(sub)
+        db.session.add(r)
         db.session.commit()
 
-        # Mostrar página de gracias con resultados
-        results = [
-            ("Apertura a la experiencia (O)", sums["O"], round(pcts["O"], 1)),
-            ("Responsabilidad / Escrupulosidad (C)", sums["C"], round(pcts["C"], 1)),
-            ("Extraversión (E)", sums["E"], round(pcts["E"], 1)),
-            ("Amabilidad (A)", sums["A"], round(pcts["A"], 1)),
-            ("Neuroticismo (N)", sums["N"], round(pcts["N"], 1)),
-        ]
-        return render_template("thanks.html", results=results, spec=spec, sub_id=sub.id)
+        session["last_results"] = percent_list  # para mostrar en /thanks
+        return redirect(url_for("thanks"))
 
-    return render_template("test.html", spec=spec)
+    # GET
+    return render_template("test.html", spec=spec, prev=None)
 
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    """
-    Admin súper simple con usuario/password en variables de entorno:
-    ADMIN_USER / ADMIN_PASSWORD
-    """
-    if request.method == "POST":
-        u = request.form.get("username", "")
-        p = request.form.get("password", "")
-        env_u = os.environ.get("ADMIN_USER", "admin")
-        env_p = os.environ.get("ADMIN_PASSWORD", "admin123")
-        if u == env_u and p == env_p:
-            session["admin"] = True
-            flash("Sesión iniciada.", "success")
-            next_url = request.args.get("next") or url_for("admin")
-            return redirect(next_url)
-        flash("Credenciales inválidas.", "danger")
-    return render_template("login.html")
 
-@app.route("/logout")
-def logout():
-    session.clear()
-    flash("Sesión cerrada.", "info")
-    return redirect(url_for("login"))
+@app.route("/thanks")
+def thanks():
+    results = session.pop("last_results", None)
+    if not results:
+        return redirect(url_for("test"))
+    return render_template("thanks.html", results=results)
 
+
+# -----------------------------------------------------------------------------
+# Panel admin
+# -----------------------------------------------------------------------------
 @app.route("/admin")
 @admin_required
 def admin():
-    subs = Submission.query.order_by(Submission.ts.desc()).all()
-    # Prepara un resumen compacto para la tabla
-    rows = []
-    for s in subs:
-        rows.append({
-            "id": s.id,
-            "ts": s.ts.strftime("%Y-%m-%d %H:%M"),
-            "nickname": s.nickname or "",
-            "email": s.email or "",
-            "O": s.score_O, "C": s.score_C, "E": s.score_E, "A": s.score_A, "N": s.score_N
-        })
-    return render_template("admin.html", rows=rows)
+    rows = (
+        Response.query
+        .order_by(Response.ts.desc())
+        .limit(500)
+        .all()
+    )
+    data = [
+        {
+            "id": r.id,
+            "ts": r.ts.strftime("%Y-%m-%d %H:%M:%S"),
+            "nickname": r.nickname or "",
+            "email": r.email or "",
+            "O": r.O, "C": r.C, "E": r.E, "A": r.A, "N": r.N,
+        }
+        for r in rows
+    ]
+    return render_template("admin.html", rows=data)
+
 
 @app.route("/admin/export.csv")
 @admin_required
 def admin_export_csv():
-    subs = Submission.query.order_by(Submission.ts.asc()).all()
-    if not subs:
-        abort(404, "No hay datos para exportar.")
-    fname = f"big5_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
-    path = os.path.join("/tmp", fname)
-
-    fieldnames = [
-        "id","timestamp","nickname","email",
-        "score_O","score_C","score_E","score_A","score_N",
-        "pct_O","pct_C","pct_E","pct_A","pct_N",
-    ]
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        for s in subs:
-            writer.writerow({
-                "id": s.id,
-                "timestamp": s.ts.isoformat(),
-                "nickname": s.nickname or "",
-                "email": s.email or "",
-                "score_O": s.score_O, "score_C": s.score_C, "score_E": s.score_E, "score_A": s.score_A, "score_N": s.score_N,
-                "pct_O": round(s.pct_O, 2), "pct_C": round(s.pct_C, 2), "pct_E": round(s.pct_E, 2), "pct_A": round(s.pct_A, 2), "pct_N": round(s.pct_N, 2),
-            })
-
-    return send_file(path, as_attachment=True, download_name=fname)
-
-# -----------------------------------------------------------------------------
-# CLI helper (crear DB local rápidamente)
-# -----------------------------------------------------------------------------
-@app.cli.command("init-db")
-def init_db():
-    """Crea tablas de la base de datos."""
-    db.create_all()
-    print("Base de datos inicializada.")
-
-# -----------------------------------------------------------------------------
-# App factory fallback
-# -----------------------------------------------------------------------------
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    rows = Response.query.order_by(Response.ts.asc()).all()
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "ts_utc", "nickname", "email", "O", "C", "E", "A", "N"])
+    for r in rows:
+        writer.writerow([
+            r.id,
+            r.ts.strftime("%Y-%m-%d %H:%M:%S"),
+            r.nickname or "",
+            r.email or "",
+            r.O, r.C, r.E, r.A, r.
