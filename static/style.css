@@ -1,0 +1,68 @@
+/* Fondo general oscuro */
+body {
+  background-color: #0d1117;
+  color: #e6edf3;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Título */
+h1 {
+  color: #f0f6fc;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* Texto sutil */
+.muted {
+  color: #8b949e;
+  font-size: 0.9em;
+}
+
+/* Contenedor principal */
+form.card {
+  background: #161b22;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 800px;
+  margin: 20px auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* Preguntas */
+.qtext {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+/* Escala */
+.scale label {
+  margin-right: 12px;
+  cursor: pointer;
+}
+
+/* Inputs */
+input[type="text"],
+input[type="email"] {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  color: #f0f6fc;
+  padding: 8px;
+  border-radius: 6px;
+  margin-left: 8px;
+}
+
+/* Botón */
+button.btn {
+  background: #238636;
+  border: none;
+  padding: 10px 20px;
+  color: white;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button.btn:hover {
+  background: #2ea043;
+}
