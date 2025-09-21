@@ -1,39 +1,35 @@
 {% extends "base.html" %}
-{% block title %}Cuestionario Big Five (60 ítems){% endblock %}
+{% block title %}Cuestionario de 60 ítems{% endblock %}
 
 {% block content %}
 <h1>Big Five - Cuestionario de 60 ítems</h1>
-<p class="muted">{{ spec.scale.label }}</p>
+<p class="muted">1 = Muy en desacuerdo | 5 = Muy de acuerdo</p>
 
-<form class="card grid" method="post" action="/test">
-  <label>Nombre o apodo
-    <input type="text" name="nickname" value="{{ (prev.nickname if prev else '') | default('') }}">
-  </label>
+<form method="post" action="{{ url_for('test') }}" class="card" style="padding:16px;">
+  <div class="row" style="gap:12px; align-items:center; margin-bottom:22px;">
+    <label>Nombre o apodo
+      <input type="text" name="nickname" value="{{ (prev.nickname if prev) or '' }}" placeholder="Tu nombre">
+    </label>
+    <label>Email (opcional)
+      <input type="email" name="email" value="{{ (prev.email if prev) or '' }}" placeholder="tu@correo.com">
+    </label>
+  </div>
 
-  <label>Email (opcional)
-    <input type="email" name="email" value="{{ (prev.email if prev else '') | default('') }}">
-  </label>
-
-  {# — Doble espacio entre preguntas — #}
-  <style>
-    .row { margin: 24px 0; }        /* aumenta si quieres más espacio */
-    .qtext { margin-bottom: 8px; }
-    .scale label { margin-right: 10px; }
-  </style>
-
-  {% for item in items %}
-    <div class="row">
+  {# >>> AQUÍ ESTÁ EL BUCLE CORRECTO <<< #}
+  {% for item in spec['items'] %}
+    <div class="row" style="margin-bottom:28px;">  {# doble espacio entre preguntas #}
       <div class="qtext"><strong>{{ item.id }}.</strong> {{ item.text }}</div>
       <div class="scale">
-        {% for opt in spec.scale.options %}
-          {# nombre q<ID> y valor la opción #}
+        {% for n in range(spec.scale.min, spec.scale.max + 1) %}
           <label>
-            <input type="radio"
-                   name="q{{ item.id }}"
-                   value="{{ opt.value }}"
-                   {% if prev and prev['q' ~ item.id] == opt.value|string %}checked{% endif %}
-                   required>
-            {{ opt.value }}
+            <input
+              type="radio"
+              name="q{{ item.id }}"
+              value="{{ n }}"
+              {% if not prev %}required{% endif %}
+              {% if prev and prev.get('q' ~ item.id) == n|string %}checked{% endif %}
+            >
+            {{ n }}
           </label>
         {% endfor %}
       </div>
@@ -41,5 +37,9 @@
   {% endfor %}
 
   <button class="btn" type="submit">Enviar</button>
+
+  <p class="muted" style="margin-top:16px;">
+    © 2025 Big5-60p · Escala: {{ spec.scale.min }} = Muy en desacuerdo | {{ spec.scale.max }} = Muy de acuerdo
+  </p>
 </form>
 {% endblock %}
