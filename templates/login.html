@@ -1,20 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Login Admin{% endblock %}
 {% block content %}
-  <h1 class="mb-3">Admin: Iniciar sesión</h1>
-  <form method="post" class="card p-3">
-    <div class="mb-3">
-      <label class="form-label">Usuario</label>
-      <input class="form-control" name="username" required>
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Contraseña</label>
-      <input type="password" class="form-control" name="password" required>
-    </div>
-    <button class="btn btn-primary">Entrar</button>
-  </form>
-  <p class="text-muted mt-3 small">
-    Por defecto (entorno local): <code>ADMIN_USER=admin</code> y <code>ADMIN_PASSWORD=admin123</code>.  
-    En producción, define variables de entorno seguras.
-  </p>
+<form method="post">
+  <label>Usuario: <input type="text" name="username"></label><br>
+  <label>Contraseña: <input type="password" name="password"></label><br>
+  <input type="submit" value="Entrar">
+</form>
 {% endblock %}

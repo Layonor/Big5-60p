@@ -1,78 +1,368 @@
 {
-  "slug": "big5-60",
-  "title": "Big Five - Cuestionario de 60 ítems",
-  "version": "1.0",
+  "scale": {
+    "min": 1,
+    "max": 5
+  },
   "items": [
-    {"id":1,"text":"Me siento lleno/a de energía en reuniones sociales."},
-    {"id":2,"text":"Prefiero observar antes que iniciar conversaciones."},
-    {"id":3,"text":"Me entusiasma conocer gente nueva."},
-    {"id":4,"text":"Evito ser el centro de atención."},
-    {"id":5,"text":"Me resulta fácil liderar actividades en grupo."},
-    {"id":6,"text":"Suelo hablar poco en público."},
-    {"id":7,"text":"Disfruto de ambientes con mucha actividad."},
-    {"id":8,"text":"Necesito mucho tiempo a solas para recargarme."},
-    {"id":9,"text":"Me siento cómodo/a rompiendo el hielo."},
-    {"id":10,"text":"Me incomoda iniciar charlas con desconocidos."},
-    {"id":11,"text":"Tiendo a expresarme con seguridad."},
-    {"id":12,"text":"Evito participar en conversaciones largas."},
-
-    {"id":13,"text":"Soy considerado/a con los sentimientos de los demás."},
-    {"id":14,"text":"Me cuesta ponerme en el lugar de los otros."},
-    {"id":15,"text":"Busco cooperar antes que competir."},
-    {"id":16,"text":"Suelo criticar con dureza."},
-    {"id":17,"text":"Confío en la gente hasta que me pruebe lo contrario."},
-    {"id":18,"text":"Me cuesta perdonar errores ajenos."},
-    {"id":19,"text":"Ayudo aunque no me lo pidan."},
-    {"id":20,"text":"Pongo mis intereses por encima de los demás."},
-    {"id":21,"text":"Trato a las personas con calidez."},
-    {"id":22,"text":"Soy escéptico/a respecto a las intenciones de la gente."},
-    {"id":23,"text":"Evito conflictos y busco acuerdos."},
-    {"id":24,"text":"Me considero una persona fría o distante."},
-
-    {"id":25,"text":"Planifico mis tareas con anticipación."},
-    {"id":26,"text":"Dejo pendientes para último momento."},
-    {"id":27,"text":"Cumplo lo que comienzo."},
-    {"id":28,"text":"Pierdo cosas o me desordeno con facilidad."},
-    {"id":29,"text":"Soy constante al perseguir metas."},
-    {"id":30,"text":"Cambio de prioridades sin terminar lo anterior."},
-    {"id":31,"text":"Mantengo mis espacios de trabajo en orden."},
-    {"id":32,"text":"Me cuesta seguir rutinas."},
-    {"id":33,"text":"Soy detallista cuando es necesario."},
-    {"id":34,"text":"Ignoro reglas si me resultan incómodas."},
-    {"id":35,"text":"Organizo mi día de forma efectiva."},
-    {"id":36,"text":"Me cuesta ser puntual."},
-
-    {"id":37,"text":"Me preocupo con frecuencia por muchas cosas."},
-    {"id":38,"text":"Mantengo la calma en situaciones difíciles."},
-    {"id":39,"text":"Mis emociones cambian con facilidad."},
-    {"id":40,"text":"Rara vez me siento estresado/a."},
-    {"id":41,"text":"Me cuesta manejar la frustración."},
-    {"id":42,"text":"Puedo recuperar la tranquilidad rápidamente."},
-    {"id":43,"text":"Experimento ansiedad en situaciones nuevas."},
-    {"id":44,"text":"Suelo mantenerme sereno/a bajo presión."},
-    {"id":45,"text":"Me siento abrumado/a con facilidad."},
-    {"id":46,"text":"Tiendo a ver el lado positivo incluso ante problemas."},
-    {"id":47,"text":"Mi estado de ánimo es inestable."},
-    {"id":48,"text":"Rara vez me tomo las cosas a pecho."},
-
-    {"id":49,"text":"Me atraen las ideas poco comunes."},
-    {"id":50,"text":"Prefiero lo conocido a lo nuevo."},
-    {"id":51,"text":"Disfruto el arte, la música o la literatura."},
-    {"id":52,"text":"No me interesan los debates abstractos."},
-    {"id":53,"text":"Me gusta explorar nuevas formas de hacer las cosas."},
-    {"id":54,"text":"Soy más práctico/a que imaginativo/a."},
-    {"id":55,"text":"Tengo curiosidad por aprender de muchos temas."},
-    {"id":56,"text":"No suelo cuestionar las tradiciones."},
-    {"id":57,"text":"Me divierte jugar con ideas."},
-    {"id":58,"text":"Evito actividades creativas."},
-    {"id":59,"text":"Aprecio experiencias culturales nuevas."},
-    {"id":60,"text":"Soy poco receptivo/a a cambios en general."}
-  ],
-  "scoring": {
-    "E": { "pos": [1,3,5,7,9,11], "rev": [2,4,6,8,10,12] },
-    "A": { "pos": [13,15,17,19,21,23], "rev": [14,16,18,20,22,24] },
-    "C": { "pos": [25,27,29,31,33,35], "rev": [26,28,30,32,34,36] },
-    "N": { "pos": [37,39,41,43,45,47], "rev": [38,40,42,44,46,48] },
-    "O": { "pos": [49,51,53,55,57,59], "rev": [50,52,54,56,58,60] }
-  }
+    {
+      "id": 1,
+      "text": "Ítem de ejemplo 1",
+      "trait": "O",
+      "reverse": true
+    },
+    {
+      "id": 2,
+      "text": "Ítem de ejemplo 2",
+      "trait": "C",
+      "reverse": false
+    },
+    {
+      "id": 3,
+      "text": "Ítem de ejemplo 3",
+      "trait": "E",
+      "reverse": false
+    },
+    {
+      "id": 4,
+      "text": "Ítem de ejemplo 4",
+      "trait": "A",
+      "reverse": true
+    },
+    {
+      "id": 5,
+      "text": "Ítem de ejemplo 5",
+      "trait": "N",
+      "reverse": false
+    },
+    {
+      "id": 6,
+      "text": "Ítem de ejemplo 6",
+      "trait": "O",
+      "reverse": false
+    },
+    {
+      "id": 7,
+      "text": "Ítem de ejemplo 7",
+      "trait": "C",
+      "reverse": true
+    },
+    {
+      "id": 8,
+      "text": "Ítem de ejemplo 8",
+      "trait": "E",
+      "reverse": false
+    },
+    {
+      "id": 9,
+      "text": "Ítem de ejemplo 9",
+      "trait": "A",
+      "reverse": false
+    },
+    {
+      "id": 10,
+      "text": "Ítem de ejemplo 10",
+      "trait": "N",
+      "reverse": true
+    },
+    {
+      "id": 11,
+      "text": "Ítem de ejemplo 11",
+      "trait": "O",
+      "reverse": false
+    },
+    {
+      "id": 12,
+      "text": "Ítem de ejemplo 12",
+      "trait": "C",
+      "reverse": false
+    },
+    {
+      "id": 13,
+      "text": "Ítem de ejemplo 13",
+      "trait": "E",
+      "reverse": true
+    },
+    {
+      "id": 14,
+      "text": "Ítem de ejemplo 14",
+      "trait": "A",
+      "reverse": false
+    },
+    {
+      "id": 15,
+      "text": "Ítem de ejemplo 15",
+      "trait": "N",
+      "reverse": false
+    },
+    {
+      "id": 16,
+      "text": "Ítem de ejemplo 16",
+      "trait": "O",
+      "reverse": true
+    },
+    {
+      "id": 17,
+      "text": "Ítem de ejemplo 17",
+      "trait": "C",
+      "reverse": false
+    },
+    {
+      "id": 18,
+      "text": "Ítem de ejemplo 18",
+      "trait": "E",
+      "reverse": false
+    },
+    {
+      "id": 19,
+      "text": "Ítem de ejemplo 19",
+      "trait": "A",
+      "reverse": true
+    },
+    {
+      "id": 20,
+      "text": "Ítem de ejemplo 20",
+      "trait": "N",
+      "reverse": false
+    },
+    {
+      "id": 21,
+      "text": "Ítem de ejemplo 21",
+      "trait": "O",
+      "reverse": false
+    },
+    {
+      "id": 22,
+      "text": "Ítem de ejemplo 22",
+      "trait": "C",
+      "reverse": true
+    },
+    {
+      "id": 23,
+      "text": "Ítem de ejemplo 23",
+      "trait": "E",
+      "reverse": false
+    },
+    {
+      "id": 24,
+      "text": "Ítem de ejemplo 24",
+      "trait": "A",
+      "reverse": false
+    },
+    {
+      "id": 25,
+      "text": "Ítem de ejemplo 25",
+      "trait": "N",
+      "reverse": true
+    },
+    {
+      "id": 26,
+      "text": "Ítem de ejemplo 26",
+      "trait": "O",
+      "reverse": false
+    },
+    {
+      "id": 27,
+      "text": "Ítem de ejemplo 27",
+      "trait": "C",
+      "reverse": false
+    },
+    {
+      "id": 28,
+      "text": "Ítem de ejemplo 28",
+      "trait": "E",
+      "reverse": true
+    },
+    {
+      "id": 29,
+      "text": "Ítem de ejemplo 29",
+      "trait": "A",
+      "reverse": false
+    },
+    {
+      "id": 30,
+      "text": "Ítem de ejemplo 30",
+      "trait": "N",
+      "reverse": false
+    },
+    {
+      "id": 31,
+      "text": "Ítem de ejemplo 31",
+      "trait": "O",
+      "reverse": true
+    },
+    {
+      "id": 32,
+      "text": "Ítem de ejemplo 32",
+      "trait": "C",
+      "reverse": false
+    },
+    {
+      "id": 33,
+      "text": "Ítem de ejemplo 33",
+      "trait": "E",
+      "reverse": false
+    },
+    {
+      "id": 34,
+      "text": "Ítem de ejemplo 34",
+      "trait": "A",
+      "reverse": true
+    },
+    {
+      "id": 35,
+      "text": "Ítem de ejemplo 35",
+      "trait": "N",
+      "reverse": false
+    },
+    {
+      "id": 36,
+      "text": "Ítem de ejemplo 36",
+      "trait": "O",
+      "reverse": false
+    },
+    {
+      "id": 37,
+      "text": "Ítem de ejemplo 37",
+      "trait": "C",
+      "reverse": true
+    },
+    {
+      "id": 38,
+      "text": "Ítem de ejemplo 38",
+      "trait": "E",
+      "reverse": false
+    },
+    {
+      "id": 39,
+      "text": "Ítem de ejemplo 39",
+      "trait": "A",
+      "reverse": false
+    },
+    {
+      "id": 40,
+      "text": "Ítem de ejemplo 40",
+      "trait": "N",
+      "reverse": true
+    },
+    {
+      "id": 41,
+      "text": "Ítem de ejemplo 41",
+      "trait": "O",
+      "reverse": false
+    },
+    {
+      "id": 42,
+      "text": "Ítem de ejemplo 42",
+      "trait": "C",
+      "reverse": false
+    },
+    {
+      "id": 43,
+      "text": "Ítem de ejemplo 43",
+      "trait": "E",
+      "reverse": true
+    },
+    {
+      "id": 44,
+      "text": "Ítem de ejemplo 44",
+      "trait": "A",
+      "reverse": false
+    },
+    {
+      "id": 45,
+      "text": "Ítem de ejemplo 45",
+      "trait": "N",
+      "reverse": false
+    },
+    {
+      "id": 46,
+      "text": "Ítem de ejemplo 46",
+      "trait": "O",
+      "reverse": true
+    },
+    {
+      "id": 47,
+      "text": "Ítem de ejemplo 47",
+      "trait": "C",
+      "reverse": false
+    },
+    {
+      "id": 48,
+      "text": "Ítem de ejemplo 48",
+      "trait": "E",
+      "reverse": false
+    },
+    {
+      "id": 49,
+      "text": "Ítem de ejemplo 49",
+      "trait": "A",
+      "reverse": true
+    },
+    {
+      "id": 50,
+      "text": "Ítem de ejemplo 50",
+      "trait": "N",
+      "reverse": false
+    },
+    {
+      "id": 51,
+      "text": "Ítem de ejemplo 51",
+      "trait": "O",
+      "reverse": false
+    },
+    {
+      "id": 52,
+      "text": "Ítem de ejemplo 52",
+      "trait": "C",
+      "reverse": true
+    },
+    {
+      "id": 53,
+      "text": "Ítem de ejemplo 53",
+      "trait": "E",
+      "reverse": false
+    },
+    {
+      "id": 54,
+      "text": "Ítem de ejemplo 54",
+      "trait": "A",
+      "reverse": false
+    },
+    {
+      "id": 55,
+      "text": "Ítem de ejemplo 55",
+      "trait": "N",
+      "reverse": true
+    },
+    {
+      "id": 56,
+      "text": "Ítem de ejemplo 56",
+      "trait": "O",
+      "reverse": false
+    },
+    {
+      "id": 57,
+      "text": "Ítem de ejemplo 57",
+      "trait": "C",
+      "reverse": false
+    },
+    {
+      "id": 58,
+      "text": "Ítem de ejemplo 58",
+      "trait": "E",
+      "reverse": true
+    },
+    {
+      "id": 59,
+      "text": "Ítem de ejemplo 59",
+      "trait": "A",
+      "reverse": false
+    },
+    {
+      "id": 60,
+      "text": "Ítem de ejemplo 60",
+      "trait": "N",
+      "reverse": false
+    }
+  ]
 }

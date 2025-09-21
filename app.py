@@ -26,8 +26,10 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # - Si deseas otra URI, define SQLALCHEMY_DATABASE_URI en env.
 db_uri = os.environ.get("SQLALCHEMY_DATABASE_URI")
 if not db_uri:
-    # Fuerza SQLite en /tmp para evitar Postgres/psycopg
-    db_uri = "sqlite:////tmp/big5.db"
+    # Usa una base de datos en la misma carpeta del proyecto
+    db_path = os.path.join(os.path.dirname(__file__), 'big5.db')
+    db_uri = f"sqlite:///{db_path}"
+
 app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
 
 db = SQLAlchemy(app)

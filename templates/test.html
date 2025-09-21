@@ -15,9 +15,8 @@
     </label>
   </div>
 
-  {# >>> AQUÍ ESTÁ EL BUCLE CORRECTO <<< #}
   {% for item in spec['items'] %}
-    <div class="row" style="margin-bottom:28px;">  {# doble espacio entre preguntas #}
+    <div class="row" style="margin-bottom:28px;">
       <div class="qtext"><strong>{{ item.id }}.</strong> {{ item.text }}</div>
       <div class="scale">
         {% for n in range(spec.scale.min, spec.scale.max + 1) %}
