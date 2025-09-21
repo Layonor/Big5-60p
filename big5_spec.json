@@ -1,0 +1,24 @@
+{
+  "traits": {
+    "openness": {
+      "name": "Apertura a la experiencia",
+      "description": "Personas con alta apertura suelen ser imaginativas, curiosas y abiertas a nuevas experiencias."
+    },
+    "conscientiousness": {
+      "name": "Responsabilidad",
+      "description": "Personas responsables son organizadas, disciplinadas y confiables."
+    },
+    "extraversion": {
+      "name": "Extraversión",
+      "description": "Los extrovertidos disfrutan la interacción social, son habladores y enérgicos."
+    },
+    "agreeableness": {
+      "name": "Amabilidad",
+      "description": "Personas amables tienden a ser compasivas, cooperativas y empáticas."
+    },
+    "neuroticism": {
+      "name": "Neuroticismo",
+      "description": "Quienes puntúan alto en neuroticismo tienden a experimentar emociones negativas como ansiedad o inseguridad."
+    }
+  }
+}
