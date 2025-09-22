@@ -22,9 +22,19 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-me")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Base de datos:
-# - Por defecto, usar SQLite en /tmp (ideal para Render Free)
-# - Si deseas otra URI, define SQLALCHEMY_DATABASE_URI en env.
+# - Si hay SQLALCHEMY_DATABASE_URI en env, úsala.
+# - Si estamos en Render, usar /tmp (es la zona writable).
+# - Si no, en local: archivo big5.db junto al proyecto.
 db_uri = os.environ.get("SQLALCHEMY_DATABASE_URI")
+if not db_uri:
+    if os.environ.get("RENDER"):  # Render inyecta esta var
+        db_uri = "sqlite:////tmp/big5.db"
+    else:
+        db_path = os.path.join(os.path.dirname(__file__), "big5.db")
+        db_uri = f"sqlite:///{db_path}"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
+
 if not db_uri:
     # Usa una base de datos en la misma carpeta del proyecto
     db_path = os.path.join(os.path.dirname(__file__), 'big5.db')
