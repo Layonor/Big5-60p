@@ -27,18 +27,11 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # - Si no, en local: archivo big5.db junto al proyecto.
 db_uri = os.environ.get("SQLALCHEMY_DATABASE_URI")
 if not db_uri:
-    if os.environ.get("RENDER"):  # Render inyecta esta var
+    if os.environ.get("RENDER"):  # Render inyecta esta var de entorno
         db_uri = "sqlite:////tmp/big5.db"
     else:
         db_path = os.path.join(os.path.dirname(__file__), "big5.db")
         db_uri = f"sqlite:///{db_path}"
-
-app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
-
-if not db_uri:
-    # Usa una base de datos en la misma carpeta del proyecto
-    db_path = os.path.join(os.path.dirname(__file__), 'big5.db')
-    db_uri = f"sqlite:///{db_path}"
 
 app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
 
@@ -50,7 +43,6 @@ with app.app_context():
 
 # Correo del administrador por defecto
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "vale.romero@gmail.com")
-
 
 # -----------------------------------------------------------------------------
 # Utilidades: cargar test y calcular puntuaciones
@@ -159,7 +151,6 @@ def make_csv_bytes(rows, fieldnames):
     bio.seek(0)
     return bio
 
-
 # -----------------------------------------------------------------------------
 # Modelo
 # -----------------------------------------------------------------------------
@@ -176,7 +167,6 @@ class Response(db.Model):
     A = db.Column(db.Integer, nullable=False)
     N = db.Column(db.Integer, nullable=False)
 
-
 # -----------------------------------------------------------------------------
 # CLI
 # -----------------------------------------------------------------------------
@@ -185,7 +175,6 @@ def init_db():
     """Crea tablas si no existen."""
     db.create_all()
     print("Base de datos inicializada.")
-
 
 # -----------------------------------------------------------------------------
 # Auth muy simple para admin
@@ -197,7 +186,6 @@ def admin_required(fn):
             return redirect(url_for("login", next=request.path))
         return fn(*args, **kwargs)
     return wrapper
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -214,13 +202,11 @@ def login():
         flash("Credenciales inválidas.", "danger")
     return render_template("login.html")
 
-
 @app.route("/logout")
 def logout():
     session.pop("admin", None)
     flash("Sesión cerrada.", "info")
     return redirect(url_for("test"))
-
 
 # -----------------------------------------------------------------------------
 # Email
@@ -269,14 +255,12 @@ def send_admin_email(subject: str, body: str, csv_bytes: BytesIO, csv_name: str)
             smtp.login(user, pwd)
         smtp.send_message(msg)
 
-
 # -----------------------------------------------------------------------------
 # Rutas principales
 # -----------------------------------------------------------------------------
 @app.route("/")
 def index():
     return redirect(url_for("test"))
-
 
 @app.route("/test", methods=["GET", "POST"])
 def test():
@@ -312,7 +296,6 @@ def test():
             "O_pct": percent["O"], "C_pct": percent["C"], "E_pct": percent["E"],
             "A_pct": percent["A"], "N_pct": percent["N"],
         }
-        # Agregar respuestas crudas:
         for it in spec["items"]:
             answers_row[f"Q{it['id']}"] = request.form.get(f"q{it['id']}")
 
@@ -320,7 +303,7 @@ def test():
         csv_mem = make_csv_bytes([answers_row], fieldnames)
         csv_name = f"big5_respuestas_{r.id}_{r.ts.strftime('%Y%m%d_%H%M%S')}.csv"
 
-        # Email a admin
+        # Email a admin (sólo a ti)
         subject = f"[Big5-60p] Nuevo test #{r.id}"
         body_lines = [
             "Nuevo cuestionario Big Five (60 ítems)",
@@ -347,7 +330,6 @@ def test():
         ]
         body = "\n".join(body_lines)
 
-        # enviar
         csv_mem.seek(0)
         try:
             send_admin_email(subject, body, csv_mem, csv_name)
@@ -361,12 +343,9 @@ def test():
     # GET
     return render_template("test.html", spec=spec, items=spec["items"], prev=None)
 
-
 @app.route("/thanks")
 def thanks():
-    # Gracias simple, sin mostrar puntajes.
     return render_template("thanks.html")
-
 
 # -----------------------------------------------------------------------------
 # Panel admin
@@ -391,7 +370,6 @@ def admin():
         for r in rows
     ]
     return render_template("admin.html", rows=data)
-
 
 @app.route("/admin/export.csv")
 @admin_required
@@ -418,10 +396,8 @@ def admin_export_csv():
         as_attachment=True,
     )
 
-
 # -----------------------------------------------------------------------------
 # Arranque local
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    # En local: python app.py
     app.run(host="127.0.0.1", port=5000, debug=False)
